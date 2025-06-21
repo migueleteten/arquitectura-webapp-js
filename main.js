@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("detail-panel-content")
     .addEventListener("click", handlePanelClick);
+    document.querySelectorAll('.js-close-modal').forEach(button => {
+        button.addEventListener('click', closeModal);
+    });
 });
 
 // --- RENDERIZADO DE LA TABLA PRINCIPAL ---
