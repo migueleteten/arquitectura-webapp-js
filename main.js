@@ -381,3 +381,10 @@ function saveEncargoChanges() {
 function onError(error) {
   alert("Error: " + error.message);
 }
+
+function closeModal() {
+    const modal = document.getElementById('edit-modal');
+    if(modal) {
+        modal.style.display = 'none';
+    }
+}
