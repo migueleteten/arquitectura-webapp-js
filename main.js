@@ -124,83 +124,35 @@ function closeDetailPanel() {
 }
 
 function renderDetailPanel(data) {
-  // VERSIÓN CORREGIDA Y MÁS SEGURA
-  // Primero comprobamos si 'data' es nulo o si 'data' contiene una propiedad de error.
-  if (!data || data.error) {
-    const errorMessage = data
-      ? data.error
-      : "No se recibieron datos del servidor.";
-    document.getElementById(
-      "detail-panel-content"
-    ).innerHTML = `<p>Error al cargar los detalles: ${errorMessage}</p>`;
-    return;
-  }
+    if (!data || data.error) {
+        const errorMessage = data ? data.error : "No se recibieron datos del servidor.";
+        document.getElementById('detail-panel-content').innerHTML = `<p>Error al cargar los detalles: ${errorMessage}</p>`;
+        return;
+    }
+    const { expediente, cliente } = data;
+    const content = document.getElementById('detail-panel-content');
+    const actionsContainer = document.getElementById('panel-header-actions');
+    const driveUrl = `https://drive.google.com/drive/folders/${expediente.ID_Carpeta_Drive}`;
+    actionsContainer.innerHTML = `<a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="panel-action-icon" title="Abrir carpeta en Drive"><svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 512 512"><path fill="currentColor" d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg></a>`;
 
-  const { expediente, cliente } = data;
-  const content = document.getElementById("detail-panel-content");
-
-  const actionsContainer = document.getElementById('panel-header-actions');
-  const driveUrl = `https://drive.google.com/drive/folders/${expediente.ID_Carpeta_Drive}`;
-  actionsContainer.innerHTML = `
-    <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="panel-action-icon" title="Abrir carpeta en Drive">
-      <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 512 512"><path fill="currentColor" d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg>
-    </a>
-  `;  
-
-  // El resto de la función sigue igual...
-  content.innerHTML = `
+    content.innerHTML = `
         <div class="detail-group">
-          <h3>Expediente: ${expediente.ID_Expediente}</h3>
-          <div class="detail-field special-edit" data-field-name="Encargo" data-sheet-name="Expedientes">
-              <span class="field-label">Encargo:</span>
-              <span class="field-value">${
-                expediente.Encargo || "<i>No establecido</i>"
-              }</span>
-          </div>
-          ${createEditableSelect(
-            "Estado",
-            expediente.Estado,
-            ["Sin presupuestar", "Presupuestado", "Aceptado", "No aceptado"],
-            "Expedientes"
-          )}
+            <h3>Expediente: ${expediente.ID_Expediente}</h3>
+            <div class="detail-field special-edit" data-field-name="Encargo"><span class="field-label">Encargo:</span><span class="field-value">${expediente.Encargo || '<i>No establecido</i>'}</span></div>
+            ${createEditableSelect('Estado', expediente.Estado, ['Sin presupuestar', 'Presupuestado', 'Aceptado', 'No aceptado'], 'Expedientes')}
         </div>
-        
         <div class="detail-group">
-          <h3>Cliente: ${cliente.Nombre} ${cliente.Apellido1}</h3>
-          ${createEditableField("Nombre", cliente.Nombre, "Clientes")}
-          ${createEditableField(
-            "Apellido1",
-            cliente.Apellido1,
-            "Clientes",
-            "Primer Apellido"
-          )}
-          ${createEditableField(
-            "Apellido2",
-            cliente.Apellido2,
-            "Clientes",
-            "Segundo Apellido"
-          )}
-          ${createEditableField("Telefono", cliente.Telefono, "Clientes")}
-          ${createEditableField("Email", cliente.Email, "Clientes")}
-          ${createEditableField("NIF", cliente.NIF, "Clientes")}
+            <h3>Cliente: ${cliente.Nombre} ${cliente.Apellido1}</h3>
+            ${createEditableField('Nombre', cliente.Nombre, 'Clientes')}${createEditableField('Apellido1', cliente.Apellido1, 'Clientes', 'Primer Apellido')}${createEditableField('Apellido2', cliente.Apellido2, 'Clientes', 'Segundo Apellido')}${createEditableField('Telefono', cliente.Telefono, 'Clientes')}${createEditableField('Email', cliente.Email, 'Clientes')}${createEditableField('NIF', cliente.NIF, 'Clientes')}
         </div>
-
         <div class="detail-group">
-          <h3>Dirección</h3>
-          ${createEditableField(
-            "DireccionCompleta",
-            expediente.DireccionCompleta,
-            "Expedientes",
-            "Dirección Completa"
-          )}
+            <h3>Dirección</h3>
+            <div class="detail-field special-edit" data-type="direccion-modal" data-field-name="DireccionCompleta"><span class="field-label">Dirección Completa:</span><span class="field-value">${expediente.DireccionCompleta || '<i>No establecido</i>'}</span></div>
         </div>
-
-        <div class="detail-group">
-          <h3>Presupuestos</h3>
-          <p>Aún no hay ningún presupuesto creado.</p>
-          <button class="btn-primary">Nuevo Presupuesto de Honorarios</button>
-        </div>
-      `;
+        <div class="detail-group"><h3>Presupuestos</h3><p>Aún no hay ningún presupuesto creado.</p><button class="btn-primary">Nuevo Presupuesto de Honorarios</button></div>
+    `;
+    // Almacenamos los datos actuales para pasarlos a los modales de edición
+    content.dataset.expediente = JSON.stringify(expediente);
 }
 
 // --- FUNCIONES AUXILIARES PARA RENDERIZAR Y EDITAR ---
@@ -249,6 +201,8 @@ async function handlePanelClick(e) {
         if (fieldName === 'Encargo') {
             const currentValue = fieldDiv.querySelector('.field-value').textContent;
             openEncargoModal(currentValue);
+        } else if (fieldDiv.dataset.type === 'direccion-modal') {
+            openDireccionModal(expedienteData);
         }
         return; // Salimos para no ejecutar la lógica de edición inline
     } 
@@ -424,6 +378,86 @@ function saveEncargoChanges() {
       "Encargo",
       newEncargoString
     );
+}
+
+function openDireccionModal(expediente) {
+    const modal = document.getElementById('edit-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const modalSaveButton = document.getElementById('modal-save-button');
+
+    modalTitle.textContent = 'Editar Dirección';
+    modalBody.innerHTML = `
+        <form id="form-direccion" class="config-form">
+            <input type="text" name="TipoVia" placeholder="Tipo de Vía" value="${expediente.TipoVia || ''}" list="tipos-via-list" required>
+            <datalist id="tipos-via-list"></datalist>
+            <input type="text" name="NombreVia" placeholder="Nombre de la Vía" value="${expediente.NombreVia || ''}" required>
+            <input type="text" name="Numero" placeholder="Nº" value="${expediente.Numero || ''}" required>
+            <input type="text" name="PisoPuerta" placeholder="Piso, Puerta, Esc." value="${expediente.PisoPuerta || ''}">
+            <input type="text" name="CP" placeholder="Código Postal" value="${expediente.CP || ''}" required>
+            <input type="text" name="Localidad" placeholder="Localidad" value="${expediente.Localidad || ''}" required>
+            <input type="text" name="Provincia" placeholder="Provincia" value="${expediente.Provincia || ''}" required>
+        </form>
+    `;
+    
+    populateTiposVia(); // Llenamos el datalist
+
+    modalSaveButton.onclick = saveDireccionChanges;
+    modal.style.display = 'flex';
+}
+
+async function saveDireccionChanges() {
+    const form = document.getElementById('form-direccion');
+    const addressData = {
+        TipoVia: form.TipoVia.value,
+        NombreVia: form.NombreVia.value,
+        Numero: form.Numero.value,
+        PisoPuerta: form.PisoPuerta.value,
+        CP: form.CP.value,
+        Localidad: form.Localidad.value,
+        Provincia: form.Provincia.value
+    };
+
+    const modalSaveButton = document.getElementById('modal-save-button');
+    modalSaveButton.disabled = true;
+    modalSaveButton.textContent = 'Guardando...';
+
+    try {
+        const response = await new Promise((resolve, reject) => {
+            google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateAddress(currentExpedienteId, addressData);
+        });
+
+        if (response.status === 'error') throw new Error(response.message);
+
+        modalSaveButton.disabled = false;
+        modalSaveButton.textContent = 'Guardar Cambios';
+        closeModal();
+        
+        // Forzamos una recarga completa de los datos para ver los cambios en todos lados
+        const data = await new Promise((resolve, reject) => {
+            google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getExpedientesParaListado();
+        });
+        onDataReceived(data); // Refresca la tabla
+        openDetailPanel(currentExpedienteId); // Refresca el panel
+
+    } catch (error) {
+        onError(error);
+        modalSaveButton.disabled = false;
+        modalSaveButton.textContent = 'Guardar Cambios';
+    }
+}
+
+function populateTiposVia() {
+    const tipos = ['Calle', 'Avenida', 'Plaza', 'Paseo', 'Carretera', 'Ronda', 'Travesía', 'Camino', 'Bulevar', 'Glorieta'];
+    const datalist = document.getElementById('tipos-via-list');
+    if(datalist) {
+        datalist.innerHTML = '';
+        tipos.forEach(tipo => {
+            const option = document.createElement('option');
+            option.value = tipo;
+            datalist.appendChild(option);
+        });
+    }
 }
 
 // --- MANEJO DE ERRORES ---
