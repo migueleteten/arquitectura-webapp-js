@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.js-close-modal').forEach(button => {
         button.addEventListener('click', closeModal);
     });
+  document.querySelector('.js-close-panel').addEventListener('click', closeDetailPanel);
 });
 
 // --- RENDERIZADO DE LA TABLA PRINCIPAL ---
@@ -31,30 +32,37 @@ function onDataReceived(data) {
 }
 
 function renderTable(data) {
-  const tbody = document.getElementById("expedientes-tbody");
-  tbody.innerHTML = "";
+  const tbody = document.getElementById('expedientes-tbody');
+  tbody.innerHTML = '';
   if (data.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="6">No se encontraron expedientes.</td></tr>';
+    // Añadimos el colspan="7" para que ocupe la nueva columna
+    tbody.innerHTML = '<tr><td colspan="7">No se encontraron expedientes.</td></tr>';
     return;
   }
-  data.forEach((exp) => {
-    const row = document.createElement("tr");
+  
+  data.forEach(exp => {
+    const row = document.createElement('tr');
     row.dataset.id = exp.id_expediente;
-    row.onclick = (e) => {
-      // Prevenir que el click en un posible botón dentro de la fila abra el panel
-      if (e.target.tagName !== "BUTTON") openDetailPanel(exp.id_expediente);
+    row.onclick = (e) => { 
+      if(e.target.closest('a')) return; // Si se hace clic en el link, no abras el panel
+      if(e.target.tagName !== 'BUTTON') openDetailPanel(exp.id_expediente);
     };
+    
+    const driveUrl = `https://drive.google.com/drive/folders/${exp.driveFolderId}`;
+    
     row.innerHTML = `
-          <td>${exp.codigo || ""}</td>
-          <td>${exp.encargo || ""}</td>
-          <td>${exp.direccion || ""}</td>
-          <td>${exp.nombre_cliente || ""}</td>
-          <td>${exp.telefono || ""}</td>
-          <td><span class="badge ${
-            "badge-" + (exp.estado || "").toLowerCase().replace(/\s+/g, "-")
-          }">${exp.estado || ""}</span></td>
-        `;
+      <td>${exp.codigo || ''}</td>
+      <td>${exp.encargo || ''}</td>
+      <td>${exp.direccion || ''}</td>
+      <td>${exp.nombre_cliente || ''}</td>
+      <td>${exp.telefono || ''}</td>
+      <td><span class="badge ${'badge-' + (exp.estado || '').toLowerCase().replace(/\s+/g, '-')}">${exp.estado || ''}</span></td>
+      <td class="actions-cell">
+        <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="row-action-icon" title="Abrir carpeta en Drive">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 512 512"><path fill="currentColor" d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg>
+        </a>
+      </td>
+    `;
     tbody.appendChild(row);
   });
 }
@@ -112,6 +120,7 @@ function openDetailPanel(expedienteId) {
 function closeDetailPanel() {
   document.getElementById("detail-panel").classList.remove("open");
   document.querySelector(".main-container").classList.remove("panel-open");
+  document.getElementById('panel-header-actions').innerHTML = '';
 }
 
 function renderDetailPanel(data) {
@@ -129,6 +138,14 @@ function renderDetailPanel(data) {
 
   const { expediente, cliente } = data;
   const content = document.getElementById("detail-panel-content");
+
+  const actionsContainer = document.getElementById('panel-header-actions');
+  const driveUrl = `https://drive.google.com/drive/folders/${expediente.ID_Carpeta_Drive}`;
+  actionsContainer.innerHTML = `
+    <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="panel-action-icon" title="Abrir carpeta en Drive">
+      <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 512 512"><path fill="currentColor" d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg>
+    </a>
+  `;  
 
   // El resto de la función sigue igual...
   content.innerHTML = `
