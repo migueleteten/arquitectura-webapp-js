@@ -250,6 +250,8 @@ async function handlePanelClick(e) {
             openEncargoModal(currentValue);
         }
     } else if (e.target.classList.contains('field-value')) {
+        // === ¡CORRECCIÓN! Definimos fieldName aquí al principio ===
+        const fieldName = fieldDiv.dataset.fieldName;
         const valueSpan = fieldDiv.querySelector('.field-value');
         const inputEl = fieldDiv.querySelector('.field-input');
         
@@ -257,6 +259,7 @@ async function handlePanelClick(e) {
         inputEl.style.display = 'inline-block';
         inputEl.focus();
 
+        // Ahora 'fieldName' sí existe y esta línea funciona
         const originalValue = (fieldName === 'Estado') ? inputEl.value : valueSpan.textContent;
 
         const saveChange = async () => {
@@ -264,7 +267,7 @@ async function handlePanelClick(e) {
             inputEl.style.opacity = 0.5;
 
             const newValue = inputEl.value;
-            const fieldName = fieldDiv.dataset.fieldName;
+            // Ya no necesitamos definir fieldName aquí porque ya existe
             const sheetName = fieldDiv.dataset.sheetName;
 
             try {
@@ -279,7 +282,7 @@ async function handlePanelClick(e) {
                 if (fieldName === 'Estado') {
                     valueSpan.innerHTML = `<span class="badge ${'badge-' + (newValue || '').toLowerCase().replace(/\s+/g, '-')}">${newValue}</span>`;
                 } else {
-                    valueSpan.textContent = newValue || 'No establecido';
+                    valueSpan.textContent = newValue || '<i>No establecido</i>';
                 }
                 valueSpan.style.display = 'inline';
 
@@ -288,13 +291,11 @@ async function handlePanelClick(e) {
                     onDataReceived(data);
                 }
             } catch (error) {
-                // === ¡MEJORA! Revertimos la UI en caso de error ===
                 onError(error);
                 inputEl.disabled = false;
                 inputEl.style.opacity = 1;
                 inputEl.style.display = 'none';
                 
-                // Devolvemos el valor original al span
                 if (fieldName === 'Estado') {
                     valueSpan.innerHTML = `<span class="badge ${'badge-' + (originalValue || '').toLowerCase().replace(/\s+/g, '-')}">${originalValue}</span>`;
                 } else {
