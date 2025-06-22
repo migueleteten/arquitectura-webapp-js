@@ -239,75 +239,81 @@ function createEditableSelect(fieldName, value, options, sheetName, label) {
         `;
 }
 
-function handlePanelClick(e) {
-  // Buscamos el contenedor del campo en el que se ha hecho clic
-  const fieldDiv = e.target.closest(".detail-field");
-  if (!fieldDiv) return; // Si no se encontró un campo, no hacemos nada
+async function handlePanelClick(e) {
+    const fieldDiv = e.target.closest('.detail-field');
+    if (!fieldDiv) return;
 
-  // Si es un campo de edición especial como "Encargo"
-  if (fieldDiv.classList.contains("special-edit")) {
-    const fieldName = fieldDiv.dataset.fieldName;
-    if (fieldName === "Encargo") {
-      const currentValue = fieldDiv.querySelector(".field-value").textContent;
-      openEncargoModal(currentValue);
+    if (fieldDiv.classList.contains('special-edit')) {
+        const fieldName = fieldDiv.dataset.fieldName;
+        if (fieldName === 'Encargo') {
+            const currentValue = fieldDiv.querySelector('.field-value').textContent;
+            openEncargoModal(currentValue);
+        }
+    } else if (e.target.classList.contains('field-value')) {
+        const valueSpan = fieldDiv.querySelector('.field-value');
+        const inputEl = fieldDiv.querySelector('.field-input');
+        
+        valueSpan.style.display = 'none';
+        inputEl.style.display = 'inline-block';
+        inputEl.focus();
+
+        const originalValue = (fieldName === 'Estado') ? inputEl.value : valueSpan.textContent;
+
+        const saveChange = async () => {
+            inputEl.disabled = true;
+            inputEl.style.opacity = 0.5;
+
+            const newValue = inputEl.value;
+            const fieldName = fieldDiv.dataset.fieldName;
+            const sheetName = fieldDiv.dataset.sheetName;
+
+            try {
+                const response = await backend.updateExpedienteField(currentExpedienteId, sheetName, fieldName, newValue);
+                
+                if(response.status === 'error') throw new Error(response.message);
+
+                inputEl.disabled = false;
+                inputEl.style.opacity = 1;
+                inputEl.style.display = 'none';
+
+                if (fieldName === 'Estado') {
+                    valueSpan.innerHTML = `<span class="badge ${'badge-' + (newValue || '').toLowerCase().replace(/\s+/g, '-')}">${newValue}</span>`;
+                } else {
+                    valueSpan.textContent = newValue || 'No establecido';
+                }
+                valueSpan.style.display = 'inline';
+
+                if (response.refreshList) {
+                    const data = await backend.getExpedientesParaListado();
+                    onDataReceived(data);
+                }
+            } catch (error) {
+                // === ¡MEJORA! Revertimos la UI en caso de error ===
+                onError(error);
+                inputEl.disabled = false;
+                inputEl.style.opacity = 1;
+                inputEl.style.display = 'none';
+                
+                // Devolvemos el valor original al span
+                if (fieldName === 'Estado') {
+                    valueSpan.innerHTML = `<span class="badge ${'badge-' + (originalValue || '').toLowerCase().replace(/\s+/g, '-')}">${originalValue}</span>`;
+                } else {
+                    valueSpan.textContent = originalValue;
+                }
+                valueSpan.style.display = 'inline';
+            }
+        };
+
+        inputEl.onblur = saveChange;
+        inputEl.onkeydown = (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); inputEl.blur(); } 
+            else if (event.key === 'Escape') {
+                inputEl.onblur = null;
+                inputEl.style.display = 'none';
+                valueSpan.style.display = 'inline';
+            }
+        };
     }
-    // Aquí podríamos añadir más casos 'else if' para otros campos especiales en el futuro
-  }
-  // Si es un campo normal de edición inline
-  else if (e.target.classList.contains("field-value")) {
-    const valueSpan = fieldDiv.querySelector(".field-value");
-    const inputEl = fieldDiv.querySelector(".field-input");
-    valueSpan.style.display = "none";
-    inputEl.style.display = "inline-block";
-    inputEl.focus();
-
-    const saveChange = () => {
-      // ... (el resto de la lógica de guardado inline que ya tenías)
-      inputEl.disabled = true;
-      inputEl.style.opacity = 0.5;
-      const newValue = inputEl.value;
-      const fieldName = fieldDiv.dataset.fieldName;
-      const sheetName = fieldDiv.dataset.sheetName;
-      google.script.run
-        .withSuccessHandler((response) => {
-          inputEl.disabled = false;
-          inputEl.style.opacity = 1;
-          inputEl.style.display = "none";
-          if (fieldName === "Estado") {
-            valueSpan.innerHTML = `<span class="badge ${
-              "badge-" + (newValue || "").toLowerCase().replace(/\s+/g, "-")
-            }">${newValue}</span>`;
-          } else {
-            valueSpan.textContent = newValue || "No establecido";
-          }
-          valueSpan.style.display = "inline";
-          if (response.refreshList) {
-            google.script.run
-              .withSuccessHandler(onDataReceived)
-              .getExpedientesParaListado();
-          }
-        })
-        .withFailureHandler(onError)
-        .updateExpedienteField(
-          currentExpedienteId,
-          sheetName,
-          fieldName,
-          newValue
-        );
-    };
-
-    inputEl.onblur = saveChange;
-    inputEl.onkeydown = (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        inputEl.blur();
-      } else if (event.key === "Escape") {
-        inputEl.onblur = null;
-        inputEl.style.display = "none";
-        valueSpan.style.display = "inline";
-      }
-    };
-  }
 }
 
 /**
