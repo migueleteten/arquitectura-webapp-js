@@ -195,6 +195,8 @@ async function handlePanelClick(e) {
     const fieldDiv = e.target.closest('.detail-field');
     if (!fieldDiv) return;
 
+  const expedienteData = JSON.parse(document.getElementById('detail-panel-content').dataset.expediente || '{}');
+
     // Lógica para el modal de "Encargo" (no cambia)
     if (fieldDiv.classList.contains('special-edit')) {
         const fieldName = fieldDiv.dataset.fieldName;
