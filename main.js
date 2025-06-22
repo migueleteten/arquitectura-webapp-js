@@ -22,6 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener('click', closeModal);
     });
   document.querySelector('.js-close-panel').addEventListener('click', closeDetailPanel);
+  document
+    .getElementById("detail-panel-content").addEventListener('change', handlePanelChange);
 });
 
 // --- RENDERIZADO DE LA TABLA PRINCIPAL ---
@@ -135,6 +137,26 @@ function renderDetailPanel(data) {
     const driveUrl = `https://drive.google.com/drive/folders/${expediente.ID_Carpeta_Drive}`;
     actionsContainer.innerHTML = `<a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="panel-action-icon" title="Abrir carpeta en Drive"><svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 512 512"><path fill="currentColor" d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg></a>`;
 
+    // Guardamos los datos completos en el panel para poder acceder a ellos fácilmente
+    content.dataset.expediente = JSON.stringify(expediente);
+    
+    // Generamos la sección del cliente dinámicamente
+    let clienteHtml = '';
+    if (cliente.TipoPersona === 'Jurídica') {
+        clienteHtml = `
+            ${createEditableField('RazonSocial', cliente.RazonSocial, 'Clientes', 'Razón Social')}
+            ${createEditableField('CIF', cliente.CIF, 'Clientes')}
+            ${createEditableField('DireccionFiscal', cliente.DireccionFiscal, 'Clientes', 'Dirección Fiscal')}
+            <h4 class="contact-person-header">Persona de Contacto</h4>
+            ${createEditableField('Nombre', cliente.Nombre, 'Clientes')}${createEditableField('Apellido1', cliente.Apellido1, 'Clientes', 'Primer Apellido')}${createEditableField('Apellido2', cliente.Apellido2, 'Clientes', 'Segundo Apellido')}${createEditableField('Telefono', cliente.Telefono, 'Clientes')}${createEditableField('Email', cliente.Email, 'Clientes')}${createEditableField('NIF', cliente.NIF, 'Clientes')}
+        `;
+    } else { // Persona Física
+        clienteHtml = `
+            ${createEditableField('Nombre', cliente.Nombre, 'Clientes')}${createEditableField('Apellido1', cliente.Apellido1, 'Clientes', 'Primer Apellido')}${createEditableField('Apellido2', cliente.Apellido2, 'Clientes', 'Segundo Apellido')}${createEditableField('Telefono', cliente.Telefono, 'Clientes')}${createEditableField('Email', cliente.Email, 'Clientes')}${createEditableField('NIF', cliente.NIF, 'Clientes')}
+        `;
+    }
+
+    // Componemos todo el HTML final del panel
     content.innerHTML = `
         <div class="detail-group">
             <h3>Expediente: ${expediente.ID_Expediente}</h3>
@@ -142,8 +164,12 @@ function renderDetailPanel(data) {
             ${createEditableSelect('Estado', expediente.Estado, ['Sin presupuestar', 'Presupuestado', 'Aceptado', 'No aceptado'], 'Expedientes')}
         </div>
         <div class="detail-group">
-            <h3>Cliente: ${cliente.Nombre} ${cliente.Apellido1}</h3>
-            ${createEditableField('Nombre', cliente.Nombre, 'Clientes')}${createEditableField('Apellido1', cliente.Apellido1, 'Clientes', 'Primer Apellido')}${createEditableField('Apellido2', cliente.Apellido2, 'Clientes', 'Segundo Apellido')}${createEditableField('Telefono', cliente.Telefono, 'Clientes')}${createEditableField('Email', cliente.Email, 'Clientes')}${createEditableField('NIF', cliente.NIF, 'Clientes')}
+            <h3>Cliente</h3>
+            <div class="tipo-persona-selector-panel">
+                <label><input type="radio" name="tipoPersonaPanel" value="Física" ${cliente.TipoPersona !== 'Jurídica' ? 'checked' : ''}> Persona Física</label>
+                <label><input type="radio" name="tipoPersonaPanel" value="Jurídica" ${cliente.TipoPersona === 'Jurídica' ? 'checked' : ''}> Persona Jurídica</label>
+            </div>
+            <div class="client-fields-container">${clienteHtml}</div>
         </div>
         <div class="detail-group">
             <h3>Dirección</h3>
@@ -151,8 +177,34 @@ function renderDetailPanel(data) {
         </div>
         <div class="detail-group"><h3>Presupuestos</h3><p>Aún no hay ningún presupuesto creado.</p><button class="btn-primary">Nuevo Presupuesto de Honorarios</button></div>
     `;
-    // Almacenamos los datos actuales para pasarlos a los modales de edición
-    content.dataset.expediente = JSON.stringify(expediente);
+}
+
+function handlePanelChange(e) {
+    if (e.target.name === 'tipoPersonaPanel') {
+        const nuevoTipo = e.target.value;
+        const panelContent = document.getElementById('detail-panel-content');
+        
+        // Mostramos un feedback visual inmediato
+        panelContent.style.opacity = 0.5;
+        panelContent.style.pointerEvents = 'none';
+
+        // Llamamos al servidor para guardar el cambio
+        google.script.run
+            .withSuccessHandler(response => {
+                // Una vez guardado, forzamos la recarga completa del panel para que se actualice la estructura
+                openDetailPanel(currentExpedienteId);
+                panelContent.style.opacity = 1;
+                panelContent.style.pointerEvents = 'auto';
+            })
+            .withFailureHandler(error => {
+                onError(error);
+                // Si falla, también recargamos para volver al estado anterior
+                openDetailPanel(currentExpedienteId);
+                panelContent.style.opacity = 1;
+                panelContent.style.pointerEvents = 'auto';
+            })
+            .updateExpedienteField(currentExpedienteId, 'Clientes', 'TipoPersona', nuevoTipo);
+    }
 }
 
 // --- FUNCIONES AUXILIARES PARA RENDERIZAR Y EDITAR ---
