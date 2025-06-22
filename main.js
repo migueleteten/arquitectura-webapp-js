@@ -243,13 +243,18 @@ async function handlePanelClick(e) {
     const fieldDiv = e.target.closest('.detail-field');
     if (!fieldDiv) return;
 
+    // Lógica para el modal de "Encargo" (no cambia)
     if (fieldDiv.classList.contains('special-edit')) {
         const fieldName = fieldDiv.dataset.fieldName;
         if (fieldName === 'Encargo') {
             const currentValue = fieldDiv.querySelector('.field-value').textContent;
             openEncargoModal(currentValue);
         }
-    } else if (e.target.classList.contains('field-value')) {
+        return; // Salimos para no ejecutar la lógica de edición inline
+    } 
+    
+    // Lógica para la edición inline normal
+    if (e.target.classList.contains('field-value')) {
         const fieldName = fieldDiv.dataset.fieldName;
         const valueSpan = fieldDiv.querySelector('.field-value');
         const inputEl = fieldDiv.querySelector('.field-input');
@@ -258,12 +263,11 @@ async function handlePanelClick(e) {
         inputEl.style.display = 'inline-block';
         inputEl.focus();
 
-        const originalValue = (fieldName === 'Estado') ? inputEl.value : valueSpan.textContent;
+        const originalValue = (fieldName === 'Estado') ? inputEl.value : valueSpan.textContent.trim();
 
-        // --- LÓGICA DE GUARDADO COMPLETA ---
         const saveChange = async () => {
             // Evitar guardar si no hay cambios
-            if (inputEl.value === originalValue.trim()) {
+            if (inputEl.value.trim() === originalValue) {
                 inputEl.style.display = 'none';
                 valueSpan.style.display = 'inline';
                 return;
@@ -276,10 +280,17 @@ async function handlePanelClick(e) {
             const sheetName = fieldDiv.dataset.sheetName;
 
             try {
-                const response = await backend.updateExpedienteField(currentExpedienteId, sheetName, fieldName, newValue);
+                // Hacemos la llamada a google.script.run y la envolvemos en una Promesa para poder usar await
+                const response = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .updateExpedienteField(currentExpedienteId, sheetName, fieldName, newValue);
+                });
                 
                 if(response.status === 'error') throw new Error(response.message);
 
+                // Si todo va bien, actualizamos la UI
                 inputEl.disabled = false;
                 inputEl.style.opacity = 1;
                 inputEl.style.display = 'none';
@@ -291,16 +302,22 @@ async function handlePanelClick(e) {
                 }
                 valueSpan.style.display = 'inline';
 
+                // Si la respuesta del servidor nos pide refrescar, lo hacemos
                 if (response.refreshList) {
-                    const data = await backend.getExpedientesParaListado();
+                    const data = await new Promise((resolve, reject) => {
+                        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getExpedientesParaListado();
+                    });
                     onDataReceived(data);
                 }
+
             } catch (error) {
+                // Si hay un error, lo mostramos y revertimos la UI
                 onError(error);
                 inputEl.disabled = false;
                 inputEl.style.opacity = 1;
                 inputEl.style.display = 'none';
                 
+                // Devolvemos el valor original al span
                 if (fieldName === 'Estado') {
                     valueSpan.innerHTML = `<span class="badge ${'badge-' + (originalValue || '').toLowerCase().replace(/\s+/g, '-')}">${originalValue}</span>`;
                 } else {
