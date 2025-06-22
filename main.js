@@ -240,38 +240,17 @@ function createEditableSelect(fieldName, value, options, sheetName, label) {
 }
 
 async function handlePanelClick(e) {
-    console.log("--- handlePanelClick iniciado ---");
-    console.log("Elemento clickeado:", e.target);
-
     const fieldDiv = e.target.closest('.detail-field');
-    
-    console.log("Elemento .detail-field encontrado:", fieldDiv);
-    if (!fieldDiv) {
-        console.log("No se encontró .detail-field. Saliendo.");
-        return;
-    }
+    if (!fieldDiv) return;
 
     if (fieldDiv.classList.contains('special-edit')) {
-        console.log("Es un campo de edición especial.");
         const fieldName = fieldDiv.dataset.fieldName;
         if (fieldName === 'Encargo') {
             const currentValue = fieldDiv.querySelector('.field-value').textContent;
             openEncargoModal(currentValue);
         }
     } else if (e.target.classList.contains('field-value')) {
-        console.log("Es un campo de edición normal.");
-        
-        // Vamos a depurar aquí paso a paso
-        console.log("Contenido de fieldDiv.dataset:", fieldDiv.dataset);
         const fieldName = fieldDiv.dataset.fieldName;
-        console.log("Valor de fieldName definido:", fieldName);
-
-        if (typeof fieldName === 'undefined') {
-            console.error("¡ERROR! fieldName es undefined. El código se detendrá aquí.");
-            alert("Error de depuración: fieldName no está definido. Revisa la consola (F12).");
-            return;
-        }
-
         const valueSpan = fieldDiv.querySelector('.field-value');
         const inputEl = fieldDiv.querySelector('.field-input');
         
@@ -280,10 +259,55 @@ async function handlePanelClick(e) {
         inputEl.focus();
 
         const originalValue = (fieldName === 'Estado') ? inputEl.value : valueSpan.textContent;
-        console.log("Valor original guardado:", originalValue);
-        
+
+        // --- LÓGICA DE GUARDADO COMPLETA ---
         const saveChange = async () => {
-            // ... el resto de la función saveChange que ya teníamos ...
+            // Evitar guardar si no hay cambios
+            if (inputEl.value === originalValue.trim()) {
+                inputEl.style.display = 'none';
+                valueSpan.style.display = 'inline';
+                return;
+            }
+            
+            inputEl.disabled = true;
+            inputEl.style.opacity = 0.5;
+
+            const newValue = inputEl.value;
+            const sheetName = fieldDiv.dataset.sheetName;
+
+            try {
+                const response = await backend.updateExpedienteField(currentExpedienteId, sheetName, fieldName, newValue);
+                
+                if(response.status === 'error') throw new Error(response.message);
+
+                inputEl.disabled = false;
+                inputEl.style.opacity = 1;
+                inputEl.style.display = 'none';
+
+                if (fieldName === 'Estado') {
+                    valueSpan.innerHTML = `<span class="badge ${'badge-' + (newValue || '').toLowerCase().replace(/\s+/g, '-')}">${newValue}</span>`;
+                } else {
+                    valueSpan.textContent = newValue || '<i>No establecido</i>';
+                }
+                valueSpan.style.display = 'inline';
+
+                if (response.refreshList) {
+                    const data = await backend.getExpedientesParaListado();
+                    onDataReceived(data);
+                }
+            } catch (error) {
+                onError(error);
+                inputEl.disabled = false;
+                inputEl.style.opacity = 1;
+                inputEl.style.display = 'none';
+                
+                if (fieldName === 'Estado') {
+                    valueSpan.innerHTML = `<span class="badge ${'badge-' + (originalValue || '').toLowerCase().replace(/\s+/g, '-')}">${originalValue}</span>`;
+                } else {
+                    valueSpan.textContent = originalValue;
+                }
+                valueSpan.style.display = 'inline';
+            }
         };
 
         inputEl.onblur = saveChange;
