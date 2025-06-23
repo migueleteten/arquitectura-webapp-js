@@ -198,7 +198,6 @@ function renderDetailPanel(data) {
             ${presupuestosHtml}
             <button class="btn-primary" onclick="iniciarNuevoPresupuesto()">Nuevo Presupuesto de Honorarios</button>
         </div>
-        <button class="btn-primary" onclick="iniciarNuevoPresupuesto()">Nuevo Presupuesto de Honorarios</button>
     `;
 }
 
@@ -629,30 +628,46 @@ function openPresupuestoModal(data) {
  */
 async function handleGenerarPresupuesto() {
     const form = document.getElementById('form-presupuesto');
-    if (!form.reportValidity()) return; // Valida los campos required
+    if (!form.reportValidity()) return;
 
     const modalSaveButton = document.getElementById('modal-save-button');
     modalSaveButton.disabled = true;
     modalSaveButton.textContent = 'Generando...';
 
-    // 1. Recoger todos los datos del formulario
+    // 1. Recoger datos simples del formulario
     const tipologia = form.tipologia.value;
     const descripcion = form.descripcion.value;
     const formaDePago = form.formaDePago.value;
     
-    const conceptos = { incluidos: [], noIncluidos: [] };
-    const checkboxes = form.querySelectorAll('input[type="checkbox"]:checked');
-    checkboxes.forEach(cb => {
-        if (cb.name.startsWith('incluido_')) {
-            conceptos.incluidos.push(cb.value);
-        } else if (cb.name.startsWith('no_incluido_')) {
-            conceptos.noIncluidos.push(cb.value);
+    // 2. --- ¡NUEVA LÓGICA! Recoger conceptos de forma estructurada ---
+    const conceptosPorEncargo = [];
+    const trabajoFieldsets = form.querySelectorAll('.trabajo-fieldset');
+    
+    trabajoFieldsets.forEach(fieldset => {
+        const encargoNombre = fieldset.querySelector('legend').textContent;
+        const incluidos = Array.from(fieldset.querySelectorAll('input[name^="incluido_"]:checked')).map(cb => cb.value);
+        const noIncluidos = Array.from(fieldset.querySelectorAll('input[name^="no_incluido_"]:checked')).map(cb => cb.value);
+        
+        // Solo añadimos el encargo si tiene algún concepto seleccionado
+        if (incluidos.length > 0 || noIncluidos.length > 0) {
+            conceptosPorEncargo.push({
+                nombre: encargoNombre,
+                incluidos: incluidos,
+                noIncluidos: noIncluidos
+            });
         }
     });
 
-    const formData = { idExpediente: currentExpedienteId, tipologia, descripcion, conceptos, formaDePago };
+    // El objeto que enviamos al backend ahora contiene la nueva estructura
+    const formData = { 
+        idExpediente: currentExpedienteId, 
+        tipologia, 
+        descripcion, 
+        conceptos: conceptosPorEncargo, // Usamos la nueva estructura
+        formaDePago 
+    };
 
-    // 2. Llamar al backend para crear todo
+    // 3. Llamar al backend (sin cambios en esta parte)
     try {
         const response = await new Promise((resolve, reject) => {
             google.script.run
@@ -662,17 +677,15 @@ async function handleGenerarPresupuesto() {
         });
 
         if (response.status === 'error') throw new Error(response.message);
-
-        // 3. Éxito: cerrar todo, recargar panel y mostrar enlace
+        
         alert(response.message);
-        window.open(response.pdfUrl, '_blank'); // Abrir el nuevo PDF
+        window.open(response.pdfUrl, '_blank');
         closeModal();
-        openDetailPanel(currentExpedienteId); // Recargar el panel para ver el nuevo presupuesto en la lista
+        openDetailPanel(currentExpedienteId);
 
     } catch (error) {
         onError(error);
     } finally {
-        // 4. Resetear el botón en cualquier caso
         modalSaveButton.disabled = false;
         modalSaveButton.textContent = 'Generar Presupuesto';
     }
