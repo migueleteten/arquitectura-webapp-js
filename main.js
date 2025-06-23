@@ -175,7 +175,8 @@ function renderDetailPanel(data) {
             <h3>Dirección</h3>
             <div class="detail-field special-edit" data-type="direccion-modal" data-field-name="DireccionCompleta"><span class="field-label">Dirección Completa:</span><span class="field-value">${expediente.DireccionCompleta || '<i>No establecido</i>'}</span></div>
         </div>
-        <div class="detail-group"><h3>Presupuestos</h3><p>Aún no hay ningún presupuesto creado.</p><button class="btn-primary">Nuevo Presupuesto de Honorarios</button></div>
+        <div class="detail-group"><h3>Presupuestos</h3><p>Aún no hay ningún presupuesto creado.</p>
+        <button class="btn-primary" onclick="iniciarNuevoPresupuesto()">Nuevo Presupuesto de Honorarios</button>
     `;
 }
 
@@ -524,4 +525,87 @@ function closeModal() {
     if(modal) {
         modal.style.display = 'none';
     }
+}
+
+/**
+ * Inicia el proceso para crear un nuevo presupuesto. Llama al backend para obtener los datos del form.
+ */
+function iniciarNuevoPresupuesto() {
+    const modal = document.getElementById('edit-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    modalTitle.textContent = 'Nuevo Presupuesto de Honorarios';
+    modalBody.innerHTML = '<p class="loader">Cargando configuración...</p>';
+    modal.style.display = 'flex';
+
+    google.script.run
+        .withSuccessHandler(openPresupuestoModal)
+        .withFailureHandler(onError)
+        .getDatosParaNuevoPresupuesto(currentExpedienteId);
+}
+
+/**
+ * Construye y muestra el formulario de nuevo presupuesto con los datos recibidos del servidor.
+ * @param {Object} data - El objeto con los datos de trabajos y formas de pago.
+ */
+function openPresupuestoModal(data) {
+    if (data.error) {
+        onError(new Error(data.error));
+        return;
+    }
+
+    const modalBody = document.getElementById('modal-body');
+    const modalSaveButton = document.getElementById('modal-save-button');
+    
+    // Construimos los fieldsets para los conceptos incluidos y no incluidos
+    let trabajosHtml = data.trabajos.map(trabajo => {
+        let incluidosCheckboxes = trabajo.incluidos.map(concepto => `
+            <label class="modal-checkbox-label"><input type="checkbox" name="incluido_${trabajo.nombre}" value="${concepto}" checked> ${concepto}</label>
+        `).join('');
+        
+        let noIncluidosCheckboxes = trabajo.noIncluidos.map(concepto => `
+            <label class="modal-checkbox-label"><input type="checkbox" name="no_incluido_${trabajo.nombre}" value="${concepto}" checked> ${concepto}</label>
+        `).join('');
+
+        return `
+            <fieldset class="trabajo-fieldset">
+                <legend>${trabajo.nombre}</legend>
+                <h4>Conceptos Incluidos</h4>
+                <div class="checkbox-grid">${incluidosCheckboxes}</div>
+                <h4 style="margin-top: 1rem;">Conceptos NO Incluidos</h4>
+                <div class="checkbox-grid">${noIncluidosCheckboxes}</div>
+            </fieldset>
+        `;
+    }).join('');
+
+    // Construimos las opciones para el select de forma de pago
+    let formasPagoOptions = data.formasDePago.map(forma => `<option value="${forma}">${forma}</option>`).join('');
+
+    // Montamos el formulario completo
+    modalBody.innerHTML = `
+        <form id="form-presupuesto" class="config-form">
+            <label for="tipologia">Tipología del encargo:</label>
+            <input type="text" id="tipologia" name="tipologia" placeholder="Ej: Vivienda unifamiliar, reforma de local..." required>
+            
+            <label for="descripcion" style="margin-top:1rem;">Descripción del presupuesto:</label>
+            <textarea id="descripcion" name="descripcion" required></textarea>
+
+            <div style="margin-top:1rem;">${trabajosHtml}</div>
+
+            <label for="formaDePago" style="margin-top:1rem;">Forma de Pago:</label>
+            <select id="formaDePago" name="formaDePago">${formasPagoOptions}</select>
+        </form>
+    `;
+
+    modalSaveButton.textContent = 'Generar Presupuesto';
+    modalSaveButton.onclick = handleGenerarPresupuesto; // Esta función la crearemos en el siguiente paso
+}
+
+/**
+ * Placeholder para la función que generará el presupuesto.
+ */
+function handleGenerarPresupuesto() {
+    alert("La lógica para generar el documento se implementará en el siguiente paso.");
+    // Aquí es donde recogeremos los datos del formulario y llamaremos al backend para crear el Slides.
 }
