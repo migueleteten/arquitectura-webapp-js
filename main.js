@@ -131,7 +131,7 @@ function renderDetailPanel(data) {
         document.getElementById('detail-panel-content').innerHTML = `<p>Error al cargar los detalles: ${errorMessage}</p>`;
         return;
     }
-    const { expediente, cliente } = data;
+    const { expediente, cliente, presupuestos } = data;
     const content = document.getElementById('detail-panel-content');
     const actionsContainer = document.getElementById('panel-header-actions');
     const driveUrl = `https://drive.google.com/drive/folders/${expediente.ID_Carpeta_Drive}`;
@@ -156,6 +156,24 @@ function renderDetailPanel(data) {
         `;
     }
 
+    let presupuestosHtml = '<p>Aún no hay ningún presupuesto creado.</p>';
+    if (presupuestos && presupuestos.length > 0) {
+        presupuestosHtml = '<ul class="presupuestos-list">';
+        presupuestos.sort((a, b) => b.Version.localeCompare(a.Version)); // Ordenar de más nuevo a más viejo
+        presupuestos.forEach(ppto => {
+            const pdfUrl = `https://drive.google.com/file/d/${ppto.ID_PDF_Drive}/view`;
+            presupuestosHtml += `
+                <li>
+                    <a href="${pdfUrl}" target="_blank" title="Abrir PDF">
+                        <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 384 512"><path fill="currentColor" d="M0 64C0 28.7 28.7 0 64 0H224V128c0 17.7 14.3 32 32 32H384V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64zm384 64H256V0L384 64z"/></svg>
+                        Presupuesto Versión ${ppto.Version} (${ppto.FechaCreacion})
+                    </a>
+                </li>
+            `;
+        });
+        presupuestosHtml += '</ul>';
+    }
+
     // Componemos todo el HTML final del panel
     content.innerHTML = `
         <div class="detail-group">
@@ -175,7 +193,11 @@ function renderDetailPanel(data) {
             <h3>Dirección</h3>
             <div class="detail-field special-edit" data-type="direccion-modal" data-field-name="DireccionCompleta"><span class="field-label">Dirección Completa:</span><span class="field-value">${expediente.DireccionCompleta || '<i>No establecido</i>'}</span></div>
         </div>
-        <div class="detail-group"><h3>Presupuestos</h3><p>Aún no hay ningún presupuesto creado.</p>
+        <div class="detail-group">
+            <h3>Presupuestos</h3>
+            ${presupuestosHtml}
+            <button class="btn-primary" onclick="iniciarNuevoPresupuesto()">Nuevo Presupuesto de Honorarios</button>
+        </div>
         <button class="btn-primary" onclick="iniciarNuevoPresupuesto()">Nuevo Presupuesto de Honorarios</button>
     `;
 }
@@ -605,7 +627,53 @@ function openPresupuestoModal(data) {
 /**
  * Placeholder para la función que generará el presupuesto.
  */
-function handleGenerarPresupuesto() {
-    alert("La lógica para generar el documento se implementará en el siguiente paso.");
-    // Aquí es donde recogeremos los datos del formulario y llamaremos al backend para crear el Slides.
+async function handleGenerarPresupuesto() {
+    const form = document.getElementById('form-presupuesto');
+    if (!form.reportValidity()) return; // Valida los campos required
+
+    const modalSaveButton = document.getElementById('modal-save-button');
+    modalSaveButton.disabled = true;
+    modalSaveButton.textContent = 'Generando...';
+
+    // 1. Recoger todos los datos del formulario
+    const tipologia = form.tipologia.value;
+    const descripcion = form.descripcion.value;
+    const formaDePago = form.formaDePago.value;
+    
+    const conceptos = { incluidos: [], noIncluidos: [] };
+    const checkboxes = form.querySelectorAll('input[type="checkbox"]:checked');
+    checkboxes.forEach(cb => {
+        if (cb.name.startsWith('incluido_')) {
+            conceptos.incluidos.push(cb.value);
+        } else if (cb.name.startsWith('no_incluido_')) {
+            conceptos.noIncluidos.push(cb.value);
+        }
+    });
+
+    const formData = { idExpediente: currentExpedienteId, tipologia, descripcion, conceptos, formaDePago };
+
+    // 2. Llamar al backend para crear todo
+    try {
+        const response = await new Promise((resolve, reject) => {
+            google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                .crearPresupuestoYGenerarPDF(formData);
+        });
+
+        if (response.status === 'error') throw new Error(response.message);
+
+        // 3. Éxito: cerrar todo, recargar panel y mostrar enlace
+        alert(response.message);
+        window.open(response.pdfUrl, '_blank'); // Abrir el nuevo PDF
+        closeModal();
+        openDetailPanel(currentExpedienteId); // Recargar el panel para ver el nuevo presupuesto en la lista
+
+    } catch (error) {
+        onError(error);
+    } finally {
+        // 4. Resetear el botón en cualquier caso
+        modalSaveButton.disabled = false;
+        modalSaveButton.textContent = 'Generar Presupuesto';
+    }
 }
