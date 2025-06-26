@@ -54,7 +54,7 @@ function renderTable(data) {
     
     row.innerHTML = `
       <td>${exp.codigo || ''}</td>
-      <td>${exp.encargo || ''}</td>
+      <td>${exp.descripcionBreve || ''}</td>
       <td>${exp.direccion || ''}</td>
       <td>${exp.nombre_cliente || ''}</td>
       <td>${exp.telefono || ''}</td>
